@@ -1,8 +1,8 @@
 package com.api.shosetsuya.controllers;
 
 import com.api.shosetsuya.helpers.ApiResponse;
-import com.api.shosetsuya.models.dtos.users.LoginDTO;
-import com.api.shosetsuya.models.dtos.users.RegisterDTO;
+import com.api.shosetsuya.models.dtos.auth.LoginDTO;
+import com.api.shosetsuya.models.dtos.auth.RegisterDTO;
 import com.api.shosetsuya.services.UserService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -15,6 +15,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.Map;
 
 @RestController
 @RequiredArgsConstructor
@@ -35,7 +37,17 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<?>> login(@Valid @RequestBody LoginDTO dto) {
         String token = userService.login(dto);
-        return ResponseEntity.ok(new ApiResponse<>(true, messageSource.getMessage("login.success", null, LocaleContextHolder.getLocale()), token));
+        return ResponseEntity.ok(new ApiResponse<>(
+                true,
+                messageSource.getMessage(
+                        "login.success",
+                        null,
+                        LocaleContextHolder.getLocale()),
+                        Map.of("token", token)
+                )
+        );
     }
+
+
 
 }

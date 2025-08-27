@@ -1,10 +1,9 @@
 package com.api.shosetsuya.services;
 
-import com.api.shosetsuya.models.dtos.users.LoginDTO;
-import com.api.shosetsuya.models.dtos.users.RegisterDTO;
+import com.api.shosetsuya.models.dtos.auth.LoginDTO;
+import com.api.shosetsuya.models.dtos.auth.RegisterDTO;
 import com.api.shosetsuya.models.entities.Users;
 import com.api.shosetsuya.repositories.UserRepo;
-import jakarta.xml.bind.ValidationException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -25,9 +24,19 @@ public class UserService {
     private final MessageSource messageSource;
 
     public void register(RegisterDTO dto) {
+        String email = dto.getEmail();
         String username = dto.getUsername();
         String password = dto.getPassword();
         String confirmPassword = dto.getConfirmPassword();
+
+        if(userRepo.existsByEmail(email)) {
+            throw new IllegalArgumentException(
+                    messageSource.getMessage("error.register.email.exists",
+                            null,
+                            LocaleContextHolder.getLocale()
+                    )
+            );
+        }
 
         if(!password.equals(confirmPassword)) {
             throw new IllegalArgumentException(
@@ -39,13 +48,13 @@ public class UserService {
         }
 
         String encodedPassword = encoder.encode(password);
-        Users newUser = new Users(username, encodedPassword);
+        Users newUser = new Users(email, username, encodedPassword);
         userRepo.save(newUser);
     }
 
     public String login(LoginDTO dto) {
         Authentication authentication = authManager
-                .authenticate(new UsernamePasswordAuthenticationToken(dto.getUsername(), dto.getPassword()));
-        return jwtService.generateToken(dto.getUsername());
+                .authenticate(new UsernamePasswordAuthenticationToken(dto.getEmail(), dto.getPassword()));
+        return jwtService.generateToken(dto.getEmail());
     }
 }
