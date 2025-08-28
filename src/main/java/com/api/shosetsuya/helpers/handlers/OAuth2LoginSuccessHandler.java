@@ -3,6 +3,7 @@ package com.api.shosetsuya.helpers.handlers;
 import com.api.shosetsuya.helpers.ApiResponse;
 import com.api.shosetsuya.models.entities.Users;
 import com.api.shosetsuya.repositories.UserRepo;
+import com.api.shosetsuya.services.CookieService;
 import com.api.shosetsuya.services.JwtService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.ServletException;
@@ -11,6 +12,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -28,6 +30,7 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
     private final UserRepo userRepo;
     private final MessageSource messageSource;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final CookieService cookieService;
 
     @Override
     public void onAuthenticationSuccess(HttpServletRequest request, HttpServletResponse response, Authentication authentication) throws IOException, ServletException {
@@ -39,12 +42,15 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         Users user = userRepo.findByEmail(email)
                 .orElseGet(() -> createNewUser(email, username));
 
-        String token = jwtService.generateToken(user.getEmail());
+        String accessToken = jwtService.generateToken(user.getEmail(), false);
+        String refreshToken = jwtService.generateToken(user.getEmail(), true);
+
+        response.addHeader(HttpHeaders.SET_COOKIE,cookieService.createCookie(refreshToken).toString());
 
         ApiResponse<Map<String,String>> apiResponse = new ApiResponse<>(
                 true,
                 messageSource.getMessage("login.success", null, LocaleContextHolder.getLocale()),
-                Map.of("token", token)
+                Map.of("accessToken", accessToken)
         );
 
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);

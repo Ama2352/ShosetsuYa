@@ -1,17 +1,13 @@
 package com.api.shosetsuya.services;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
-import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
-
-import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
-import java.security.Key;
-import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.Date;
 import java.util.HashMap;
@@ -22,51 +18,81 @@ import java.util.function.Function;
 public class JwtService {
 
     @Value("${jwt.secret}")
-    private String secretKey;
+    private String accessSecretKey;
 
-    public String generateToken(String email) {
+    @Value("${jwt.refresh-secret}")
+    private String refreshSecretKey;
+
+    public String generateToken(String email, boolean isRefreshToken) {
+
+        String keyType = isRefreshToken ? refreshSecretKey : accessSecretKey;
+
+        Date expiration = isRefreshToken ?
+                new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 24 * 7) : // 7 days
+                new Date(System.currentTimeMillis() + 1000 * 60 * 60); // 1 hour
+
         Map<String, Object> claims = new HashMap<>();
-        return Jwts.builder()
-                .claims(claims)
+
+        JwtBuilder jwtBuilder = Jwts.builder()
                 .subject(email)
                 .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60 * 10)) // 10 hours
-                .signWith(getSigningKey())
+                .expiration(expiration);
+
+        if(!isRefreshToken) jwtBuilder.claims(claims);
+
+        return jwtBuilder
+                .signWith(getSigningKey(keyType))
                 .compact();
     }
 
-    private SecretKey getSigningKey() {
-        byte[] keyBytes = Base64.getDecoder().decode(secretKey);
+    private SecretKey getSigningKey(String keyType) {
+        byte[] keyBytes = Base64.getDecoder().decode(keyType);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public String extractEmail(String token) {
-        return extractClaim(token, Claims::getSubject);
+    public String extractEmailFromAccessToken(String token) {
+        return extractClaim(token, Claims::getSubject, getSigningKey(accessSecretKey));
     }
 
-    private <T> T extractClaim(String token, Function<Claims, T> claimResolver) {
-        final Claims claims = extractAllClaims(token);
+    public String extractEmailFromRefreshToken(String token) {
+        return extractClaim(token, Claims::getSubject, getSigningKey(refreshSecretKey));
+    }
+
+    private <T> T extractClaim(String token, Function<Claims, T> claimResolver, SecretKey key) {
+        final Claims claims = extractAllClaims(token, key);
         return claimResolver.apply(claims);
     }
 
-    private Claims extractAllClaims(String token) {
+    private Claims extractAllClaims(String token, SecretKey key) {
         return Jwts.parser()
-                .verifyWith(getSigningKey())
+                .verifyWith(key)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
     }
 
-    public boolean validateToken(String token, UserDetails userDetails) {
-        final String userName = extractEmail(token);
-        return (userName.equals(userDetails.getUsername()) && !isTokenExpired(token));
+    private boolean isTokenExpired(String token, SecretKey key) {
+        return extractExpiration(token, key).before(new Date());
     }
 
-    private boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
+    private Date extractExpiration(String token, SecretKey key) {
+        return extractClaim(token, Claims::getExpiration, key);
     }
 
-    private Date extractExpiration(String token) {
-        return extractClaim(token, Claims::getExpiration);
+    public boolean validateAccessToken(String token, UserDetails userDetails) {
+        final String userName = extractEmailFromAccessToken(token);
+        return (userName.equals(userDetails.getUsername()) &&
+                !isTokenExpired(token, getSigningKey(accessSecretKey))
+        );
+    }
+
+    public boolean validateRefreshToken(String token) {
+        return !isTokenExpired(token, getSigningKey(refreshSecretKey));
+    }
+
+    public boolean isNearExpiry(String refreshToken) {
+        Date expiration = extractExpiration(refreshToken, getSigningKey(refreshSecretKey));
+        long timeToExpiry = expiration.getTime() - System.currentTimeMillis();
+        return timeToExpiry < 1000 * 60 * 60 * 24; // less than 1 day
     }
 }

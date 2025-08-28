@@ -10,8 +10,11 @@ import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
@@ -52,9 +55,18 @@ public class UserService {
         userRepo.save(newUser);
     }
 
-    public String login(LoginDTO dto) {
+    public Map<String, String> login(LoginDTO dto) {
         Authentication authentication = authManager
                 .authenticate(new UsernamePasswordAuthenticationToken(dto.getEmail(), dto.getPassword()));
-        return jwtService.generateToken(dto.getEmail());
+
+        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+
+        String accessToken = jwtService.generateToken(userDetails.getUsername(), false);
+        String refreshToken = jwtService.generateToken(userDetails.getUsername(), true);
+
+        return Map.of(
+                "accessToken", accessToken,
+                "refreshToken", refreshToken
+        );
     }
 }

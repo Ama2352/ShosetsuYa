@@ -1,6 +1,5 @@
 package com.api.shosetsuya.config;
 
-import com.api.shosetsuya.models.entities.CustomUserDetails;
 import com.api.shosetsuya.services.CustomUserDetailsService;
 import com.api.shosetsuya.services.JwtService;
 import jakarta.servlet.FilterChain;
@@ -8,11 +7,9 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.ApplicationContext;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -35,14 +32,14 @@ public class JwtFilter extends OncePerRequestFilter {
 
         if(authHeader != null && authHeader.startsWith("Bearer ")) {
             token = authHeader.substring(7);
-            email = jwtService.extractEmail(token);
+            email = jwtService.extractEmailFromAccessToken(token);
         }
 
         if(email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
             UserDetails userDetails = customUserDetailsService.loadUserByUsername(email);
 
-            if(jwtService.validateToken(token, userDetails)) {
+            if(jwtService.validateAccessToken(token, userDetails)) {
                 UsernamePasswordAuthenticationToken authToken =
                         new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
