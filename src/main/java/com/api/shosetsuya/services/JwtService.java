@@ -4,6 +4,7 @@ import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtBuilder;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
@@ -24,7 +25,6 @@ public class JwtService {
     private String refreshSecretKey;
 
     public String generateToken(String email, boolean isRefreshToken) {
-
         String keyType = isRefreshToken ? refreshSecretKey : accessSecretKey;
 
         Date expiration = isRefreshToken ?

@@ -29,7 +29,6 @@ import java.util.logging.Logger;
 @RequiredArgsConstructor
 @RequestMapping("/auth")
 @Tag(name = "Authentication")
-@Slf4j
 public class AuthController {
 
     private final UserService userService;

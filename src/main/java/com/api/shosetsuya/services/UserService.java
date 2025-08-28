@@ -5,6 +5,7 @@ import com.api.shosetsuya.models.dtos.auth.RegisterDTO;
 import com.api.shosetsuya.models.entities.Users;
 import com.api.shosetsuya.repositories.UserRepo;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.security.authentication.AuthenticationManager;
