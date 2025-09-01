@@ -1,7 +1,9 @@
 package com.api.shosetsuya.helpers.handlers;
 
 import com.api.shosetsuya.helpers.ApiResponse;
-import com.api.shosetsuya.models.entities.Users;
+import com.api.shosetsuya.models.entities.CustomUserDetails;
+import com.api.shosetsuya.models.entities.User;
+import com.api.shosetsuya.models.enums.UserRole;
 import com.api.shosetsuya.repositories.UserRepo;
 import com.api.shosetsuya.services.CookieService;
 import com.api.shosetsuya.services.JwtService;
@@ -15,11 +17,15 @@ import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 
 @Component
@@ -39,11 +45,21 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         String email = oAuth2User.getAttribute("email");
         String username = oAuth2User.getAttribute("name");
 
-        Users user = userRepo.findByEmail(email)
+        User user = userRepo.findByEmailWithGroupMembers(email)
                 .orElseGet(() -> createNewUser(email, username));
 
-        String accessToken = jwtService.generateToken(user.getEmail(), false);
-        String refreshToken = jwtService.generateToken(user.getEmail(), true);
+        CustomUserDetails userDetails = new CustomUserDetails(user, oAuth2User.getAttributes());
+
+        Authentication newAuth = new OAuth2AuthenticationToken(
+                userDetails,
+                userDetails.getAuthorities(),
+                authentication.getName()
+        );
+
+        SecurityContextHolder.getContext().setAuthentication(newAuth);
+
+        String accessToken = jwtService.generateToken(user.getEmail(), false, userDetails.getAuthorities());
+        String refreshToken = jwtService.generateToken(user.getEmail(), true, userDetails.getAuthorities());
 
         response.addHeader(HttpHeaders.SET_COOKIE,cookieService.createCookie(refreshToken).toString());
 
@@ -57,11 +73,12 @@ public class OAuth2LoginSuccessHandler implements AuthenticationSuccessHandler {
         objectMapper.writeValue(response.getWriter(), apiResponse);
     }
 
-    private Users createNewUser(String email, String username) {
-        Users newUser = new Users();
+    private User createNewUser(String email, String username) {
+        User newUser = new User();
         newUser.setEmail(email);
         newUser.setUsername(username != null ? username : email);
         newUser.setProvider("goggle");
+        newUser.setRoles(new HashSet<>(List.of(UserRole.USER)));
         return userRepo.save(newUser);
     }
 }

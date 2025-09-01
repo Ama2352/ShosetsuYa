@@ -1,21 +1,26 @@
 package com.api.shosetsuya.services;
 
+import com.api.shosetsuya.helpers.exceptions.ResourceNotFoundException;
 import com.api.shosetsuya.models.dtos.auth.LoginDTO;
 import com.api.shosetsuya.models.dtos.auth.RegisterDTO;
-import com.api.shosetsuya.models.entities.Users;
+import com.api.shosetsuya.models.entities.User;
+import com.api.shosetsuya.models.enums.UserRole;
 import com.api.shosetsuya.repositories.UserRepo;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -26,6 +31,17 @@ public class UserService {
     private final AuthenticationManager authManager;
     private final JwtService jwtService;
     private final MessageSource messageSource;
+
+    public User findById(UUID userId) {
+        return userRepo.findById(userId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        messageSource.getMessage(
+                                "error.user.not-found",
+                                null,
+                                LocaleContextHolder.getLocale()
+                        )
+                ));
+    }
 
     public void register(RegisterDTO dto) {
         String email = dto.getEmail();
@@ -52,7 +68,8 @@ public class UserService {
         }
 
         String encodedPassword = encoder.encode(password);
-        Users newUser = new Users(email, username, encodedPassword);
+        User newUser = new User(email, username, encodedPassword);
+        newUser.setRoles(new HashSet<>(List.of(UserRole.USER)));
         userRepo.save(newUser);
     }
 
@@ -62,12 +79,18 @@ public class UserService {
 
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
 
-        String accessToken = jwtService.generateToken(userDetails.getUsername(), false);
-        String refreshToken = jwtService.generateToken(userDetails.getUsername(), true);
+        String accessToken = jwtService.generateToken(userDetails.getUsername(), false, userDetails.getAuthorities());
+        String refreshToken = jwtService.generateToken(userDetails.getUsername(), true, userDetails.getAuthorities());
 
         return Map.of(
                 "accessToken", accessToken,
                 "refreshToken", refreshToken
         );
+    }
+
+    public User getCurrentUser() {
+        String email = SecurityContextHolder.getContext().getAuthentication().getName();
+        return userRepo.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
     }
 }

@@ -1,6 +1,7 @@
 package com.api.shosetsuya.helpers.handlers;
 
 import com.api.shosetsuya.helpers.ApiResponse;
+import com.api.shosetsuya.helpers.exceptions.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,5 +61,11 @@ public class GlobalExceptionHandler {
         String msg = messageSource.getMessage("error.general", null, LocaleContextHolder.getLocale());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ApiResponse<>(false, msg, null));
+    }
+
+    @ExceptionHandler(ResourceNotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNotFound(ResourceNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(new ApiResponse<>(false, ex.getMessage(), null));
     }
 }

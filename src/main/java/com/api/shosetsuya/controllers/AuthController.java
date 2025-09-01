@@ -3,15 +3,15 @@ package com.api.shosetsuya.controllers;
 import com.api.shosetsuya.helpers.ApiResponse;
 import com.api.shosetsuya.models.dtos.auth.LoginDTO;
 import com.api.shosetsuya.models.dtos.auth.RegisterDTO;
-import com.api.shosetsuya.models.entities.Users;
+import com.api.shosetsuya.models.entities.CustomUserDetails;
 import com.api.shosetsuya.services.CookieService;
+import com.api.shosetsuya.services.CustomUserDetailsService;
 import com.api.shosetsuya.services.JwtService;
 import com.api.shosetsuya.services.UserService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpHeaders;
@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.Map;
-import java.util.logging.Logger;
+import java.util.Set;
 
 @RestController
 @RequiredArgsConstructor
@@ -35,6 +35,7 @@ public class AuthController {
     private final MessageSource messageSource;
     private final CookieService cookieService;
     private final JwtService jwtService;
+    private final CustomUserDetailsService customUserDetailsService;
 
     @PostMapping("/register")
     public ResponseEntity<ApiResponse<?>> register(@Valid @RequestBody RegisterDTO dto) {
@@ -79,10 +80,11 @@ public class AuthController {
         }
 
         String email = jwtService.extractEmailFromRefreshToken(refreshToken);
+        CustomUserDetails userDetails = (CustomUserDetails) customUserDetailsService.loadUserByUsername(email);
 
-        String newAccessToken = jwtService.generateToken(email, false);
+        String newAccessToken = jwtService.generateToken(email, false, userDetails.getAuthorities());
         String newRefreshToken = jwtService.isNearExpiry(refreshToken) ?
-                jwtService.generateToken(email, true) : null;
+                jwtService.generateToken(email, true, userDetails.getAuthorities()) : null;
 
         ResponseEntity.BodyBuilder responseBuilder = ResponseEntity.ok();
 

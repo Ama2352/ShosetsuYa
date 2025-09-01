@@ -1,8 +1,6 @@
 package com.api.shosetsuya.models.entities;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
-import jakarta.validation.constraints.Email;
 import lombok.*;
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
@@ -16,26 +14,27 @@ import java.util.UUID;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Table(name = "users")
-public class Users {
+@Table(name = "novel_titles")
+public class NovelTitle {
 
     @Id
     @GeneratedValue
     @UuidGenerator
-    @Column(updatable = false, nullable = false)
-    private UUID id;
+    @Column(updatable = false)
+    private UUID titleId;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "novel_id", nullable = false)
+    private NovelTranslation novel;
 
     @Column(nullable = false, unique = true)
-    private String email;
+    private String title;
 
     @Column(nullable = false)
-    private String username; // chosen by user or synced from OAuth2
+    private String language;
 
-    @JsonIgnore
-    private String password; // can be null for OAuth2 users
-
-    @JsonIgnore
-    private String provider; // e.g., "google", "facebook"
+    @Column(nullable = false)
+    private boolean isMainTitle;
 
     @CreationTimestamp
     @Column(nullable = false, updatable = false)
@@ -44,10 +43,9 @@ public class Users {
     @UpdateTimestamp
     private LocalDateTime updatedAt;
 
-    public Users(String email, String username, String password) {
-        this.email = email;
-        this.username = username;
-        this.password = password;
+    public NovelTitle(String title, String language, boolean isMainTitle) {
+        this.title = title;
+        this.language = language;
+        this.isMainTitle = isMainTitle;
     }
 }
-
