@@ -3,9 +3,13 @@ package com.api.shosetsuya.services;
 import com.api.shosetsuya.helpers.exceptions.ResourceNotFoundException;
 import com.api.shosetsuya.models.dtos.auth.LoginDTO;
 import com.api.shosetsuya.models.dtos.auth.RegisterDTO;
+import com.api.shosetsuya.models.entities.TranslationGroupMember;
 import com.api.shosetsuya.models.entities.User;
+import com.api.shosetsuya.models.enums.TranslationGroupRole;
 import com.api.shosetsuya.models.enums.UserRole;
 import com.api.shosetsuya.repositories.UserRepo;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.MessageSource;
 import org.springframework.context.i18n.LocaleContextHolder;
@@ -15,12 +19,12 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.stereotype.Service;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Service
 @RequiredArgsConstructor
@@ -92,5 +96,18 @@ public class UserService {
         String email = SecurityContextHolder.getContext().getAuthentication().getName();
         return userRepo.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+    }
+
+    public Set<String> getCurrentUserRoles() {
+        Set<UserRole> appRoles = getCurrentUser().getRoles();
+        Set<TranslationGroupRole> transGroupRoles = getCurrentUser().getGroupMembers()
+                .stream()
+                .flatMap(tgMember -> tgMember.getRoles().stream())
+                .collect(Collectors.toSet());
+
+        return Stream.concat(
+                appRoles.stream().map(Enum::name),
+                transGroupRoles.stream().map(role -> "TG_" + role.name())
+        ).collect(Collectors.toSet());
     }
 }

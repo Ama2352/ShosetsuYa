@@ -19,6 +19,7 @@ import java.io.IOException;
 
 @RequiredArgsConstructor
 @Component
+@Slf4j
 public class JwtFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
@@ -35,6 +36,8 @@ public class JwtFilter extends OncePerRequestFilter {
             token = authHeader.substring(7);
             email = jwtService.extractEmailFromAccessToken(token);
         }
+
+        log.info("Security Context: {}", SecurityContextHolder.getContext().getAuthentication());
 
         if(email != null && SecurityContextHolder.getContext().getAuthentication() == null) {
 
